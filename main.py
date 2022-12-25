@@ -12,22 +12,19 @@ class Area:  # область
         self.probabilities = {'gold': [0.1, 100, 1000], 'forest': [0.85, 500, 40_000], 'soil': [0.85, 10, 40],
                               'black_earth': [0.25, 40, 100], 'iron': [0.15, 500, 5000],
                               'animals': [0.9, 100, 10_000], 'people': [0.95, 1000, 100_000]}
-        self.characteristics = {'science': 0}
-        self.extracted_resources = {'gold': 0, 'iron': 0, 'processed_gold': 0, 'processed_iron': 0, 'science': 0,
-                                    'wood': 0, 'animals': 0}
+        self.characteristics = {'science': 0, 'wood': 0, 'animals': 0, 'extracted_iron': 0, 'extracted_gold': 0,
+                                'processed_iron': 0, 'processed_gold': 0}
         self.set_characteristic()
 
     def set_characteristic(self):  # рандомная генерация данных об области
         for key, el in self.probabilities.items():
-            if key != 'black_earth':
-                if random() <= el[0]:
-                    self.characteristics[key] = randrange(*el[1:])
+            if key != 'black_earth':  # black_earth - вероятность появления чернозёма
+                if random() <= el[0]:  # эта вещь будет
+                    self.characteristics[key] = randrange(*el[1:])  # есть - рандомное кол-во предмета
                     if random() <= self.probabilities['black_earth'][0] and key == 'soil':
                         self.characteristics[key] = randrange(*self.probabilities['black_earth'][1:])
                 else:
-                    self.characteristics[key] = 0
-
-        print(self.characteristics)
+                    self.characteristics[key] = 0  # иначе - 0
 
     def next_turn(self):  # обновление данных области
         for key, el in self.characteristics.items():
@@ -38,14 +35,12 @@ class Area:  # область
             elif key == 'people':
                 self.characteristics[key] = round(self.characteristics[key] * 1.007)
 
-        for building in self.buildings:
-            if building.get_class() != 'MetallurgicalPlant':
-                self.characteristics[building.next_turn()[0]] += building.next_turn()[2]
-            else:
-                self.extracted_resources[building.next_turn()[0]] += building.next_turn()[2]
-            self.extracted_resources[building.next_turn()[1]] += abs(building.next_turn()[2])
+        for building in self.buildings:  # проходимся по всем зданиям
 
-        print(2, self.extracted_resources)
+            if building.get_class() != 'University':
+                self.characteristics[building.next_turn()[0]] += building.next_turn()[2]
+            # + в добытые ресурсы
+            self.characteristics[building.next_turn()[1]] += abs(building.next_turn()[2])
 
     def add_building(self, building):  # добавить здание: класс - здание
         self.buildings.append(building)
@@ -60,64 +55,50 @@ class Area:  # область
 
 class Country:
     def __init__(self, name):
-        self.name = name
-        self.areas = []
-        self.characteristics = {}
+        self.name = name  # название страны - строка
+        self.areas = []  # список всех областей этой страны
+        self.characteristics = {}  # хар-ки страны - сумма хар-к всех областей
 
-    def add_area(self, area):
+    def add_area(self, area):  # добавление территории в страну
         self.areas.append(area)
-        if len(self.areas) == 1:
-            self.characteristics = area.get_characteristics()
-
-            for ind in list(area.extracted_resources.keys()):
-                if ind == 'iron' or ind == 'gold':
-                    self.characteristics['extracted_' + ind] = area.extracted_resources[ind]
-                else:
-                    self.characteristics[ind] = area.extracted_resources[ind]
+        if len(self.areas) == 1:  # если до этого территорий было ноль
+            # хар-ка области - хар-ка страны
+            for ind in list(area.get_characteristics().keys()):
+                self.characteristics[ind] = area.get_characteristics()[ind]
         else:
-            self.update(area)
+            self.update(area)  # суммируем хар-ки области и страны
 
-    def update(self, area):
-        for ind in list(area.extracted_resources.keys()):
-            if ind == 'iron' or ind == 'gold':
-                self.characteristics['extracted_' + ind] += area.extracted_resources[ind]
-            else:
-                self.characteristics[ind] += area.extracted_resources[ind]
-
+    def update(self, area):  # добавить к хар-кам страны хар-ки области
         for ind in list(area.characteristics.keys()):
             self.characteristics[ind] += area.characteristics[ind]
 
-    def del_area(self, area):
+    def del_area(self, area):  # удалить область из страны (захватили)
         self.areas = self.areas[:self.areas.index(area)] + self.areas[self.areas.index(area) + 1:]
         for ind, el in area.characteristics:
             self.characteristics[ind] -= area.characteristics[ind]
 
-    def next_turn(self):
-        for ind in list(self.areas[0].extracted_resources.keys()):
-            if ind == 'iron' or ind == 'gold':
-                self.characteristics['extracted_' + ind] = 0
-            else:
-                self.characteristics[ind] = 0
+    def next_turn(self):  # следующий ход
+        # обнуление хар-к страны
 
         for ind in list(self.areas[0].characteristics.keys()):
             self.characteristics[ind] = 0
 
+        # следующий ход для каждой области
         for area in self.areas:
-            print(1, area.characteristics)
             area.next_turn()
-            self.update(area)
+            self.update(area)  # обновление хар-к страны
 
     def get_characteristics(self):
         return self.characteristics
 
 
 class Building:
-    def get_class(self):
+    def get_class(self):  # название класса
         return self.name
 
 
 class University(Building):
-    price = {'wood': 1000, 'processed_iron': 50, 'processed_gold': 10, 'science': 25}
+    price = {'wood': 1000, 'processed_iron': 50, 'processed_gold': 10, 'science': 25}  # цена постройки
 
     def __init__(self, area):
         self.name = 'University'
@@ -130,7 +111,6 @@ class University(Building):
                 # количество выпускаемых правителей
                 pass  # создание правителей
         self.year += 1
-
         return 'science', 'science', self.data['science']
 
     def level_up(self):
@@ -151,10 +131,10 @@ class GoldMine(Building):
         if self.area.characteristics['gold']:
             if self.area.characteristics['gold'] < self.data['mining']:
                 gold = self.area.characteristics['gold']
-                return 'gold', 'gold', -gold
+                return 'gold', 'extracted_gold', -gold
             else:
-                return 'gold', 'gold', -self.data['mining']
-        return 'gold', 'gold', 0
+                return 'gold', 'extracted_gold', -self.data['mining']
+        return 'gold', 'extracted_gold', 0
 
     def level_up(self):
         if self.data['level'] < 3:
@@ -174,9 +154,9 @@ class IronMine(Building):
         if self.area.characteristics['iron']:
             if self.area.characteristics['iron'] < self.data['mining']:
                 iron = self.area.characteristics['iron']
-                return 'iron', 'iron', -iron
-            return 'iron', 'iron', -self.data['mining']
-        return 'iron', 'iron', 0
+                return 'iron', 'extracted_iron', -iron
+            return 'iron', 'extracted_iron', -self.data['mining']
+        return 'iron', 'extracted_iron', 0
 
     def level_up(self):
         if self.data['level'] < 3:
@@ -185,7 +165,7 @@ class IronMine(Building):
 
 
 class Sawmill(Building):
-    price = {'wood': 300, 'iron': 30, 'science': 3}
+    price = {'wood': 300, 'extracted_iron': 30, 'science': 3}
 
     def __init__(self, area):
         self.data = {'mining': 100, 'level': 1}
@@ -206,7 +186,7 @@ class Sawmill(Building):
 
 
 class MetallurgicalPlant(Building):
-    price = {'iron': 70, 'wood': 1500, 'science': 30}
+    price = {'extracted_iron': 70, 'wood': 1000, 'science': 40}
 
     def __init__(self, area):
         self.data = {'level': 1, 'processing': 20}
@@ -214,11 +194,11 @@ class MetallurgicalPlant(Building):
         self.name = 'MetallurgicalPlant'
 
     def next_turn(self):
-        if self.area.extracted_resources['iron']:
-            if self.area.extracted_resources['iron'] < self.data['processing']:
-                return 'iron', 'processed_iron', -self.area.extracted_resources['iron']
-            return 'iron', 'processed_iron', -self.data['processing']
-        return 'iron', 'processed_iron', 0
+        if self.area.characteristics['extracted_iron']:
+            if self.area.characteristics['extracted_iron'] < self.data['processing']:
+                return 'extracted_iron', 'processed_iron', -self.area.extracted_resources['iron']
+            return 'extracted_iron', 'processed_iron', -self.data['processing']
+        return 'extracted_iron', 'processed_iron', 0
 
     def level_up(self):
         if self.data['level'] < 3:
@@ -226,19 +206,43 @@ class MetallurgicalPlant(Building):
             self.data['processing'] += 20
 
 
-b = Country('Russia')
-a = Area(b, [])
-b.add_area(a)
-print()
-b.areas[0].add_building(University(a))
-b.areas[0].add_building(GoldMine(a))
-b.areas[0].add_building(IronMine(a))
-b.areas[0].add_building(Sawmill(a))
+class ArmyAcademy(Building):
+    price = {'wood': 1000, 'processed_iron': 15, 'science': 30}
 
-b.next_turn()
-print(b.get_characteristics())
-b.areas[0].add_building(MetallurgicalPlant(a))
-while not input():
+    def __init__(self, area):
+        self.name = 'ArmyAcademy'
+        self.data = {'years': 5, 'level': 1, 'science': 10}
+        self.year = 0
+        self.area = area
+
+    def next_turn(self):
+        if self.area.characteristics['science'] >= self.data['science']:
+            if self.year % self.data['years'] == 0:
+                for _ in range(self.data['level']):
+                    # создание объекта класса "Генерал"
+                    pass
+            self.year += 1
+            return 'science', '', -self.data['science']
+
+    def level_up(self):
+        if self.data['level'] < 3:
+            self.data['level'] += 1
+            self.data['science'] += 5
+
+
+if __name__ == '__main__':
+    b = Country('Russia')
+    a = Area(b, [])
+    b.add_area(a)
+    print()
+    a.add_building(University(a))
+    a.add_building(GoldMine(a))
+    a.add_building(IronMine(a))
+    a.add_building(Sawmill(a))
+
     b.next_turn()
     print(b.get_characteristics())
-    print()
+    a.add_building(MetallurgicalPlant(a))
+    while not input():
+        b.next_turn()
+        print(b.get_characteristics())
