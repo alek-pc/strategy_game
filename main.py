@@ -1,6 +1,7 @@
 from random import randrange, random
 
 BASE_CHARACTERISTICS = {}
+level = 1   # уровень сложности
 
 
 class Area:  # область
@@ -12,8 +13,12 @@ class Area:  # область
         self.probabilities = {'gold': [0.1, 100, 1000], 'forest': [0.85, 500, 40_000], 'soil': [0.85, 10, 40],
                               'black_earth': [0.25, 40, 100], 'iron': [0.15, 500, 5000],
                               'animals': [0.9, 100, 10_000], 'people': [0.95, 1000, 100_000]}
-        self.characteristics = {'science': 0, 'wood': 0, 'animals': 0, 'extracted_iron': 0, 'extracted_gold': 0,
-                                'processed_iron': 0, 'processed_gold': 0}
+        self.characteristics = {'science': round(50 / level), 'wood': round(500 / level), 'animals': 0,
+                                'extracted_iron': round(50 / level), 'extracted_gold': round(35 / level),
+                                'processed_iron': round(50 / level), 'processed_gold': round(40 / level)}
+        # базовое количество добываемых ресурсов (необходимые для построек) определяется уровнем (больше уровень -
+        # меньше базовых ресурсов)
+
         self.set_characteristic()
 
     def set_characteristic(self):  # рандомная генерация данных об области
@@ -42,8 +47,22 @@ class Area:  # область
             # + в добытые ресурсы
             self.characteristics[building.next_turn()[1]] += abs(building.next_turn()[2])
 
-    def add_building(self, building):  # добавить здание: класс - здание
-        self.buildings.append(building)
+    def build_building(self, building):  # добавить здание: класс здания
+        if building.get_class() not in [i.get_class() for i in self.buildings]:  # первое здание - бесплатно
+            self.buildings.append(building)
+        elif all([self.country.characteristics[i] >= k for i, k in building.price.items()]):  # достаточно ресурсов
+            for i, k in building.price.items():  # проход по необходимым ресурсам
+                if self.characteristics[i] < k:  # в области недостаточно ресурсов
+                    k -= self.characteristics[i]
+                    self.characteristics[i] = 0  # минус все ресурсы этого типа в областе
+                    self.country.characteristics[i] -= k * 1.1  # все остальное берем из ресурсов страны,
+                    # но в большем количестве
+                else:
+                    self.characteristics[i] -= k  # ресурсов этого типа достаточно - вычитаем цену
+
+            self.buildings.append(building)
+        else:
+            return 'недостаточно ресурсов'  # сообщение об ошибке
 
     def del_building(self, building):
         self.buildings = self.buildings[:self.buildings.index(building)] + self.buildings[
@@ -66,11 +85,8 @@ class Country:
             for ind in list(area.get_characteristics().keys()):
                 self.characteristics[ind] = area.get_characteristics()[ind]
         else:
-            self.update(area)  # суммируем хар-ки области и страны
-
-    def update(self, area):  # добавить к хар-кам страны хар-ки области
-        for ind in list(area.characteristics.keys()):
-            self.characteristics[ind] += area.characteristics[ind]
+            for ind in list(area.characteristics.keys()):  # суммируем хар-ки области и страны
+                self.characteristics[ind] += area.characteristics[ind]
 
     def del_area(self, area):  # удалить область из страны (захватили)
         self.areas = self.areas[:self.areas.index(area)] + self.areas[self.areas.index(area) + 1:]
@@ -79,14 +95,14 @@ class Country:
 
     def next_turn(self):  # следующий ход
         # обнуление хар-к страны
-
         for ind in list(self.areas[0].characteristics.keys()):
             self.characteristics[ind] = 0
 
         # следующий ход для каждой области
         for area in self.areas:
             area.next_turn()
-            self.update(area)  # обновление хар-к страны
+            for ind in list(area.characteristics.keys()):  # обновление хар-к страны
+                self.characteristics[ind] += area.characteristics[ind]
 
     def get_characteristics(self):
         return self.characteristics
@@ -196,7 +212,7 @@ class MetallurgicalPlant(Building):
     def next_turn(self):
         if self.area.characteristics['extracted_iron']:
             if self.area.characteristics['extracted_iron'] < self.data['processing']:
-                return 'extracted_iron', 'processed_iron', -self.area.extracted_resources['iron']
+                return 'extracted_iron', 'processed_iron', -self.area.characteristics['extracted_iron']
             return 'extracted_iron', 'processed_iron', -self.data['processing']
         return 'extracted_iron', 'processed_iron', 0
 
@@ -235,14 +251,16 @@ if __name__ == '__main__':
     a = Area(b, [])
     b.add_area(a)
     print()
-    a.add_building(University(a))
-    a.add_building(GoldMine(a))
-    a.add_building(IronMine(a))
-    a.add_building(Sawmill(a))
+    a.build_building(University(a))
+    a.build_building(GoldMine(a))
+    a.build_building(IronMine(a))
+    a.build_building(Sawmill(a))
 
     b.next_turn()
     print(b.get_characteristics())
-    a.add_building(MetallurgicalPlant(a))
+    a.build_building(MetallurgicalPlant(a))
     while not input():
         b.next_turn()
+        print(b.get_characteristics())
+        print(a.build_building(Sawmill(a)))
         print(b.get_characteristics())
