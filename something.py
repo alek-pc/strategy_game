@@ -19,7 +19,8 @@ class Area:  # область
         self.governor = None
         self.neighbors = []
         # self.set_neighbors()
-        lev = level
+
+        lev = level  # уровень сложности не влияет на ботов
         if self.country.AI:
             lev = 1
 
@@ -159,6 +160,7 @@ class Country:
         else:
             for ind in list(area.characteristics.keys()):  # суммируем хар-ки области и страны
                 self.characteristics[ind] += area.characteristics[ind]
+            self.characteristics['soil'] //= len(self.areas)
 
     def del_area(self, area):  # удалить область из страны (захватили)
         self.areas = self.areas[:self.areas.index(area)] + self.areas[self.areas.index(area) + 1:]
@@ -183,12 +185,17 @@ class Country:
             area.next_turn()
             for ind in list(area.characteristics.keys()):  # обновление хар-к страны
                 self.characteristics[ind] += area.characteristics[ind]
+        self.characteristics['soil'] //= len(self.areas)
 
     def get_characteristics(self):
         return self.characteristics
 
     # измерение силы страны влияет: население, наука, лес, залежи руды, кол-во зданий, кол-во областей
     def power_measuring(self):
+        if self.characteristics['iron'] == 0:
+            return (self.characteristics['people'] * self.characteristics['science'] * self.characteristics['forest']
+                     * sum([1 for area in self.areas for _ in area.buildings]) *
+                    len(self.areas))
         return (self.characteristics['people'] * self.characteristics['science'] * self.characteristics['forest']
                 * self.characteristics['iron'] * sum([1 for area in self.areas for _ in area.buildings]) *
                 len(self.areas))
@@ -314,6 +321,7 @@ class Governor:
         self.characteristics = {'loyalty': randrange(85 - (level - 1) * lev * 10, 95 - (level - 1) * 10 * lev),
                                 'intellect': randrange(75 - (level - 1) * 10 * lev, 90 - (level - 1) * 10 * lev),
                                 'honesty': randrange(85 - (level - 1) * 10 * lev, 100 - (level - 1) * lev * 10)}
+        print(self.characteristics)
         self.area = area
 
     def next_turn(self):
@@ -321,10 +329,11 @@ class Governor:
             # условие строительства здания
             for building in [University, GoldMine, IronMine, Sawmill, MetallurgicalPlant, ArmyAcademy]:
                 if ((building(self.area).get_class() not in [i.get_class() for i in self.area.buildings] or
+                [a.buildings for a in self.area.country.areas].count(building(self.area).get_class()) < 3 or
                      all([self.area.country.characteristics[i] >= k for i, k in building.price.items()])) and
                         random() * 100 <= self.characteristics['intellect'] and
-                        self.area.characteristics[[i for i in list(building.data.keys()) if i != 'years'
-                                                                                            and i != 'level'][0]]
+                        self.area.characteristics[[i for i in list(building.data.keys())
+                                                   if i != 'years' and i != 'level'][0]]
                         >= building.data[[i for i in list(building.data.keys()) if i != 'year' and i != 'level'][0]]):
                     if building == ArmyAcademy:
                         if len(self.area.country.generals) < len(self.area.country.areas) // 2:
@@ -570,4 +579,4 @@ if __name__ == '__main__':
         print(a.get_characteristics())
         print(a2.get_characteristics())
         print(b.get_characteristics())
-        print(b.power_measuring(), [a.buildings for a in b.areas])
+        
